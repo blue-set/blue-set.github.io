@@ -186,13 +186,13 @@ nav h1, nav h2 {
 
 #logo, #gravatar {
   margin-bottom: 25px;
-}
-
-#gravatar {
   width: 180px;
+  height: 180px;
   -webkit-border-radius: 50%;
   -moz-border-radius: 50%;
   border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid {{ site.data.theme.highlight_color }};
 }
 
 #stalker {
