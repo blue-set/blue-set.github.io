@@ -1,0 +1,75 @@
+/* Dark Mode Styles */
+body.dark-mode {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+body.dark-mode h1, 
+body.dark-mode h2, 
+body.dark-mode h3, 
+body.dark-mode h4, 
+body.dark-mode h5, 
+body.dark-mode h6 {
+  color: #f0f0f0;
+}
+
+body.dark-mode .content {
+  border-left-color: #333;
+}
+
+body.dark-mode .sidebar {
+  border-bottom-color: #333;
+}
+
+body.dark-mode #bio {
+  border-color: #333;
+}
+
+body.dark-mode .site .footer,
+body.dark-mode .footer {
+  border-top-color: #333;
+  color: #888;
+}
+
+body.dark-mode a {
+  color: #6ab0de; /* Lighter version of highlight color */
+}
+
+body.dark-mode #post pre {
+  background-color: #2d2d2d;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+body.dark-mode #post code {
+  background-color: #2d2d2d;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+body.dark-mode .section-divider {
+  border-top-color: #333 !important;
+}
+
+body.dark-mode .library-item {
+  background-color: #2d2d2d !important;
+  border-color: #444 !important;
+}
+
+body.dark-mode .library-item span {
+  background: #444 !important;
+  color: #ddd !important;
+}
+
+body.dark-mode .project-tags span {
+  background: #444 !important;
+  color: #ddd !important;
+}
+
+body.dark-mode .pdf-item {
+  border-color: #444 !important;
+}
+
+body.dark-mode #dark-mode-toggle i {
+  color: #f39c12; /* Sun color */
+}

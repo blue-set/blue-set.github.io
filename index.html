@@ -5,6 +5,12 @@ title: Portfolio
 
 <div id="home">
   
+  <div style="float: right; margin-top: 5px;">
+    <a href="/library/" style="background-color: {{ site.data.theme.highlight_color }}; color: #fff; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9em;">
+      <i class="fa fa-book"></i> Library
+    </a>
+  </div>
+
   <h2><i class="fa fa-code"></i> Projects</h2>
   <ul class="posts">
     {% assign projects = site.posts | where: "category", "project" %}
@@ -23,17 +29,16 @@ title: Portfolio
     {% endfor %}
   </ul>
 
+  <hr class="section-divider" style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
+
   <h2><i class="fa fa-flask"></i> Research Proposals</h2>
   <ul class="posts">
     {% for proposal in site.research %}
       <li><a href="{{ proposal.url }}">{{ proposal.title }}</a></li>
     {% endfor %}
   </ul>
-  <div style="margin-top: 20px; margin-bottom: 20px;">
-    <a href="/library/" style="background-color: {{ site.data.theme.highlight_color }}; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
-      <i class="fa fa-book"></i> View Research Library
-    </a>
-  </div>
+
+  <hr class="section-divider" style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
 
   <h2><i class="fa fa-bookmark"></i> Blog Posts</h2>
   <ul class="posts">
