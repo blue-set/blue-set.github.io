@@ -40,29 +40,34 @@
     const toggle = document.getElementById('dark-mode-toggle');
     const body = document.body;
     
-    if (!toggle) return;
+    if (!toggle) {
+      console.error('Dark mode toggle not found');
+      return;
+    }
 
     const icon = toggle.querySelector('i');
 
-    // Check local storage
-    if (localStorage.getItem('dark-mode') === 'true') {
-      body.classList.add('dark-mode');
-      icon.classList.remove('fa-moon-o');
-      icon.classList.add('fa-sun-o');
-    }
-
-    toggle.addEventListener('click', () => {
-      body.classList.toggle('dark-mode');
-      const isDark = body.classList.contains('dark-mode');
-      localStorage.setItem('dark-mode', isDark);
-      
+    function setDarkMode(isDark) {
       if (isDark) {
+        body.classList.add('dark-mode');
         icon.classList.remove('fa-moon-o');
         icon.classList.add('fa-sun-o');
       } else {
+        body.classList.remove('dark-mode');
         icon.classList.remove('fa-sun-o');
         icon.classList.add('fa-moon-o');
       }
+    }
+
+    // Check local storage
+    if (localStorage.getItem('dark-mode') === 'true') {
+      setDarkMode(true);
+    }
+
+    toggle.addEventListener('click', () => {
+      const isDark = !body.classList.contains('dark-mode');
+      setDarkMode(isDark);
+      localStorage.setItem('dark-mode', isDark);
     });
   })();
 </script>
