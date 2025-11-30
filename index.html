@@ -32,11 +32,11 @@ title: Portfolio
   <hr class="section-divider" style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
 
   <h2><i class="fa fa-flask"></i> Research Proposals</h2>
-  <ul class="posts">
+  <ol class="posts" style="list-style-type: decimal; margin-left: 20px;">
     {% for proposal in site.research %}
-      <li><a href="{{ proposal.url }}">{{ proposal.title }}</a></li>
+      <li style="margin-bottom: 10px; padding-left: 5px;"><a href="{{ proposal.url }}">{{ proposal.title }}</a></li>
     {% endfor %}
-  </ul>
+  </ol>
 
   <hr class="section-divider" style="margin: 40px 0; border: 0; border-top: 1px solid #eee;">
 
