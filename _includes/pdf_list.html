@@ -1,0 +1,14 @@
+<div class="pdf-list">
+  {% for pdf in site.data.documents %}
+  <div class="pdf-item" style="margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px;">
+    <h3 style="margin-top: 0;">
+      <i class="fa fa-file-pdf-o"></i> {{ pdf.title }}
+    </h3>
+    <p>{{ pdf.description }}</p>
+    <div class="actions">
+      <a href="{{ site.url }}/assets/pdfs/{{ pdf.filename }}" target="_blank" class="button">View</a>
+      <a href="{{ site.url }}/assets/pdfs/{{ pdf.filename }}" download class="button">Download</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>

@@ -1,0 +1,42 @@
+---
+layout: default
+---
+
+<p class="meta">
+  Research Proposal
+  <a href="/">
+    <i class="home fa fa-home"></i>
+  </a>
+</p>
+
+<h1 class="title">{{ page.title }}</h1>
+
+<div class="research-proposal">
+  
+  {% if page.abstract %}
+  <div class="research-section">
+    <h3>Abstract</h3>
+    <p>{{ page.abstract }}</p>
+  </div>
+  {% endif %}
+
+  {% if page.methodology %}
+  <div class="research-section">
+    <h3>Methodology</h3>
+    <p>{{ page.methodology }}</p>
+  </div>
+  {% endif %}
+
+  {% if page.outcomes %}
+  <div class="research-section">
+    <h3>Expected Outcomes</h3>
+    <p>{{ page.outcomes }}</p>
+  </div>
+  {% endif %}
+
+  <hr>
+
+  <div class="research-body">
+    {{ content }}
+  </div>
+</div>

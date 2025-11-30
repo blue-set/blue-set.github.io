@@ -3,3 +3,8 @@ highlighter: rouge
 url: https://blue-set.github.io
 lsi: false
 exclude: [LICENSE, CNAME, README.md, .gitignore, Gemfile, Gemfile.lock]
+
+collections:
+  research:
+    output: true
+    permalink: /research/:path/

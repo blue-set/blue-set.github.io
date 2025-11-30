@@ -1,0 +1,25 @@
+---
+layout: default
+---
+
+<p class="meta">
+  {{ page.date | date: "%B %Y" }} 
+  <a href="/">
+    <i class="home fa fa-home"></i>
+  </a>
+</p>
+
+<h1 class="title">{{ page.title }}</h1>
+
+{% if page.tags %}
+<div class="project-tags" style="margin-bottom: 20px;">
+  <strong>Tech Stack:</strong>
+  {% for tag in page.tags %}
+    <span class="tag" style="background: #eee; padding: 2px 8px; border-radius: 3px; font-size: 0.9em; margin-right: 5px;">{{ tag }}</span>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div id="post">
+  {{ content }}
+</div>
