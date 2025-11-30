@@ -2,7 +2,7 @@
 layout: research
 title: "Breaking the Memory Wall: Hardware Acceleration for Graph Neural Networks"
 tags: [Edge AI, GNN, FPGA, Computer Architecture]
-pdf_url: /assets/pdfs/ResearchPlanPR.pdf
+pdf_url: /assets/pdfs/researchplanPR.pdf
 excerpt: "Graph Neural Networks are powerful but memory-hungry, making them difficult to run on edge devices. This project explores memory-centric hardware architectures to enable real-time GNNs on the edge."
 ---
 
@@ -30,5 +30,5 @@ This research proposes the development of an energy-efficient, memory-centric ha
 3.  Enhanced Energy Efficiency and Sustainability.
 
 <div style="margin-top: 30px; text-align: center;">
-  <a href="{{ page.pdf_url }}" class="button" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Full Proposal (PDF)</a>
+  <a href="{{ page.pdf_url | relative_url }}" class="button" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Full Proposal (PDF)</a>
 </div>

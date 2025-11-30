@@ -29,9 +29,11 @@ title: Portfolio
       <li><a href="{{ proposal.url }}">{{ proposal.title }}</a></li>
     {% endfor %}
   </ul>
-  <p style="margin-top: 10px;">
-    <a href="/library/" style="font-weight: bold;">&raquo; Browse Full Research Library (PDFs)</a>
-  </p>
+  <div style="margin-top: 20px; margin-bottom: 20px;">
+    <a href="/library/" style="background-color: {{ site.data.theme.highlight_color }}; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
+      <i class="fa fa-book"></i> View Research Library
+    </a>
+  </div>
 
   <h2><i class="fa fa-bookmark"></i> Blog Posts</h2>
   <ul class="posts">

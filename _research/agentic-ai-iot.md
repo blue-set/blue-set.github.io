@@ -2,7 +2,7 @@
 layout: research
 title: "Autonomous Industry: Multi-Modal Agentic AI for IoT"
 tags: [Agentic AI, Industry 4.0, IoT, Robotics]
-pdf_url: /assets/pdfs/ResearchPlanIOT.pdf
+pdf_url: /assets/pdfs/RPIOT.pdf
 excerpt: "Moving beyond static automation, this research develops autonomous AI agents capable of perceiving, reasoning, and acting in dynamic industrial environments using multi-modal data."
 ---
 
@@ -30,5 +30,5 @@ This research proposes the development of a learning-based, multi-modal agentic 
 3.  Increased Safety and Resilience in industrial settings.
 
 <div style="margin-top: 30px; text-align: center;">
-  <a href="{{ page.pdf_url }}" class="button" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Full Proposal (PDF)</a>
+  <a href="{{ page.pdf_url | relative_url }}" class="button" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Full Proposal (PDF)</a>
 </div>

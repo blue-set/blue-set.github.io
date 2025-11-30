@@ -6,8 +6,8 @@
     </h3>
     <p>{{ pdf.description }}</p>
     <div class="actions">
-      <a href="{{ site.url }}/assets/pdfs/{{ pdf.filename }}" target="_blank" class="button">View</a>
-      <a href="{{ site.url }}/assets/pdfs/{{ pdf.filename }}" download class="button">Download</a>
+      <a href="{{ '/assets/pdfs/' | append: pdf.filename | relative_url }}" target="_blank" class="button">View</a>
+      <a href="{{ '/assets/pdfs/' | append: pdf.filename | relative_url }}" download class="button">Download</a>
     </div>
   </div>
   {% endfor %}

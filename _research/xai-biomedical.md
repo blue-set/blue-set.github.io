@@ -2,7 +2,7 @@
 layout: research
 title: "Opening the Black Box: Multimodal XAI for Medical Diagnosis"
 tags: [XAI, Medical Imaging, Deep Learning, Healthcare]
-pdf_url: /assets/pdfs/ResearchPlanBio.pdf
+pdf_url: /assets/pdfs/RPBio.pdf
 excerpt: "Trust is the barrier to AI in healthcare. This system uses a hierarchical explainability framework to provide visual, textual, and conceptual justifications for lesion detection."
 ---
 
@@ -31,5 +31,5 @@ Artificial intelligence has demonstrated a profound capacity to analyze biomedic
 A complete, end-to-end framework for developing and validating trustworthy, human-centric medical AI, transforming the AI from an opaque oracle into a transparent clinical partner.
 
 <div style="margin-top: 30px; text-align: center;">
-  <a href="{{ page.pdf_url }}" class="button" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Full Proposal (PDF)</a>
+  <a href="{{ page.pdf_url | relative_url }}" class="button" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Full Proposal (PDF)</a>
 </div>

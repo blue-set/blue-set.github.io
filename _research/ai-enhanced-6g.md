@@ -2,7 +2,7 @@
 layout: research
 title: "Smart Signals: AI-Driven Interference Cancellation for 6G Networks"
 tags: [6G, Deep Reinforcement Learning, LSTM, Wireless]
-pdf_url: /assets/pdfs/ResearchPlan 6G.pdf
+pdf_url: /assets/pdfs/ResearchPlan6G.pdf
 excerpt: "6G promises a hyper-connected world, but network densification brings massive interference. This research proposes an AI-native physical layer using DRL to proactively manage signal clashes."
 ---
 
@@ -37,5 +37,5 @@ This research will develop an AI-based framework embedded directly into 6G base 
 3.  A Foundation for the AI-RAN.
 
 <div style="margin-top: 30px; text-align: center;">
-  <a href="{{ page.pdf_url }}" class="button" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Full Proposal (PDF)</a>
+  <a href="{{ page.pdf_url | relative_url }}" class="button" style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Download Full Proposal (PDF)</a>
 </div>

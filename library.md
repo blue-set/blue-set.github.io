@@ -19,8 +19,8 @@ Access my full collection of research proposals, white papers, and technical doc
     </p>
     <p>{{ research.excerpt }}</p>
     <div class="actions" style="margin-top: 15px;">
-      <a href="{{ research.pdf_url }}" class="button" download style="text-decoration: none; background: #333; color: #fff; padding: 8px 15px; border-radius: 4px; font-size: 0.9em;"><i class="fa fa-download"></i> Download PDF</a>
-      <a href="{{ research.url }}" style="margin-left: 10px; font-size: 0.9em;">Read Abstract &raquo;</a>
+      <a href="{{ research.pdf_url | relative_url }}" class="button" download style="text-decoration: none; background: #333; color: #fff; padding: 8px 15px; border-radius: 4px; font-size: 0.9em;"><i class="fa fa-download"></i> Download PDF</a>
+      <a href="{{ research.url | relative_url }}" style="margin-left: 10px; font-size: 0.9em;">Read Abstract &raquo;</a>
     </div>
   </div>
   {% endfor %}
