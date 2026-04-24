@@ -1,6 +1,7 @@
 ---
 layout: default
 title: World Map
+permalink: /world-map/
 ---
 
 <h2><i class="fa fa-globe"></i> Interactive World Map</h2>
