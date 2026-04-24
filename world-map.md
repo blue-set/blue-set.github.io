@@ -74,10 +74,30 @@ permalink: /world-map/
     white-space: nowrap;
   }
 
+  .province-label {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(80, 80, 80, 0.45);
+    border-radius: 3px;
+    color: #111;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    line-height: 1.1;
+    padding: 1px 3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
   body.dark-mode .city-label {
     background: rgba(30, 30, 30, 0.85);
     border-color: #555;
     color: #f5f5f5;
+  }
+
+  body.dark-mode .province-label {
+    background: rgba(25, 25, 25, 0.9);
+    border-color: rgba(220, 220, 220, 0.25);
+    color: #f2f2f2;
   }
 
   @media (max-width: 768px) {
@@ -123,6 +143,7 @@ permalink: /world-map/
     var countryLayer = null;
     var provinceLayer = null;
     var priorityProvinceLayer = null;
+    var priorityProvinceLabelLayer = L.layerGroup();
     var cityLayer = L.layerGroup().addTo(map);
     var provinceData = null;
     var extraProvinceData = [];
@@ -167,7 +188,8 @@ permalink: /world-map/
         color: "#b30000",
         weight: 1.3,
         opacity: 0.9,
-        fillOpacity: 0
+        fillColor: "#d95f5f",
+        fillOpacity: 0.08
       };
     }
 
@@ -226,6 +248,68 @@ permalink: /world-map/
     function cityCountryCode(feature) {
       var props = feature && feature.properties ? feature.properties : {};
       return propText(props, ["ADM0_A3", "adm0_a3", "ISO_A2", "iso_a2", "ISO_A3", "iso_a3"]);
+    }
+
+    function provinceName(feature) {
+      var props = feature && feature.properties ? feature.properties : {};
+      return propText(props, [
+        "name_en",
+        "NAME_EN",
+        "name",
+        "NAME",
+        "nameascii",
+        "NAMEASCII",
+        "woe_name",
+        "gn_name"
+      ]);
+    }
+
+    function ringCentroid(ring) {
+      var areaAcc = 0;
+      var cxAcc = 0;
+      var cyAcc = 0;
+      for (var i = 0; i < ring.length - 1; i++) {
+        var x1 = ring[i][0];
+        var y1 = ring[i][1];
+        var x2 = ring[i + 1][0];
+        var y2 = ring[i + 1][1];
+        var cross = (x1 * y2) - (x2 * y1);
+        areaAcc += cross;
+        cxAcc += (x1 + x2) * cross;
+        cyAcc += (y1 + y2) * cross;
+      }
+      var area = areaAcc / 2;
+      if (!area) {
+        return null;
+      }
+      return [cxAcc / (6 * area), cyAcc / (6 * area)];
+    }
+
+    function geometryCentroid(geometry) {
+      if (!geometry || !geometry.type || !geometry.coordinates) {
+        return null;
+      }
+      if (geometry.type === "Polygon") {
+        return ringCentroid(geometry.coordinates[0]);
+      }
+      if (geometry.type === "MultiPolygon") {
+        var biggestRing = null;
+        var biggestLen = 0;
+        for (var i = 0; i < geometry.coordinates.length; i++) {
+          var poly = geometry.coordinates[i];
+          if (!poly || !poly[0]) {
+            continue;
+          }
+          if (poly[0].length > biggestLen) {
+            biggestLen = poly[0].length;
+            biggestRing = poly[0];
+          }
+        }
+        if (biggestRing) {
+          return ringCentroid(biggestRing);
+        }
+      }
+      return null;
     }
 
     function rebuildCityLayer() {
@@ -352,6 +436,27 @@ permalink: /world-map/
       }, {
         style: stylePriorityProvinceBorders
       });
+
+      priorityProvinceLabelLayer.clearLayers();
+      for (var m = 0; m < priorityFeatures.length; m++) {
+        var feature = priorityFeatures[m];
+        var label = provinceName(feature);
+        if (!label) {
+          continue;
+        }
+        var centroid = geometryCentroid(feature.geometry);
+        if (!centroid) {
+          continue;
+        }
+        var marker = L.marker([centroid[1], centroid[0]], {
+          icon: L.divIcon({
+            className: "province-label",
+            html: label
+          }),
+          keyboard: false
+        });
+        priorityProvinceLabelLayer.addLayer(marker);
+      }
     }
 
     function syncZoomLayers() {
@@ -369,6 +474,12 @@ permalink: /world-map/
         map.addLayer(priorityProvinceLayer);
       } else if ((!uiState.showPriorityDetail || zoom < 4) && priorityProvinceLayer && map.hasLayer(priorityProvinceLayer)) {
         map.removeLayer(priorityProvinceLayer);
+      }
+
+      if (uiState.showPriorityDetail && zoom >= 5 && !map.hasLayer(priorityProvinceLabelLayer)) {
+        map.addLayer(priorityProvinceLabelLayer);
+      } else if ((!uiState.showPriorityDetail || zoom < 5) && map.hasLayer(priorityProvinceLabelLayer)) {
+        map.removeLayer(priorityProvinceLabelLayer);
       }
 
       if (uiState.showProvinceBorders && zoom >= 5 && provinceLayer && !map.hasLayer(provinceLayer)) {
