@@ -7,6 +7,13 @@ permalink: /world-map/
 <h2><i class="fa fa-globe"></i> Interactive World Map</h2>
 <p>Pinch to zoom on touch screens, drag to pan, and zoom in to reveal provinces and major cities.</p>
 
+<div id="map-controls" aria-label="Map layer controls">
+  <label><input type="checkbox" id="toggle-country-borders" checked> Country borders</label>
+  <label><input type="checkbox" id="toggle-province-borders" checked> Province/state borders</label>
+  <label><input type="checkbox" id="toggle-priority-detail" checked> Extra detail for China/India</label>
+  <label><input type="checkbox" id="toggle-city-labels" checked> Major city labels</label>
+</div>
+
 <div id="world-map-container" aria-label="Interactive world map"></div>
 <p id="map-status" style="font-size: 0.9em; color: #666; margin-top: 10px;"></p>
 
@@ -31,6 +38,28 @@ permalink: /world-map/
     border-radius: 6px;
     box-sizing: border-box;
     touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  #map-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: 12px 0 10px;
+    font-size: 0.92em;
+  }
+
+  #map-controls label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 2px 0;
+  }
+
+  #map-controls input[type="checkbox"] {
+    margin: 0;
+    width: 15px;
+    height: 15px;
   }
 
   .city-label {
@@ -63,6 +92,10 @@ permalink: /world-map/
   (function () {
     var statusEl = document.getElementById("map-status");
     var mapEl = document.getElementById("world-map-container");
+    var toggleCountryBordersEl = document.getElementById("toggle-country-borders");
+    var toggleProvinceBordersEl = document.getElementById("toggle-province-borders");
+    var togglePriorityDetailEl = document.getElementById("toggle-priority-detail");
+    var toggleCityLabelsEl = document.getElementById("toggle-city-labels");
 
     if (!window.L || !mapEl) {
       if (statusEl) {
@@ -94,6 +127,12 @@ permalink: /world-map/
     var provinceData = null;
     var extraProvinceData = [];
     var cityData = null;
+    var uiState = {
+      showCountryBorders: true,
+      showProvinceBorders: true,
+      showPriorityDetail: true,
+      showCityLabels: true
+    };
 
     function setStatus(message) {
       if (statusEl) {
@@ -193,6 +232,10 @@ permalink: /world-map/
       if (!cityData || !cityData.features) {
         return;
       }
+      if (!uiState.showCityLabels) {
+        cityLayer.clearLayers();
+        return;
+      }
 
       var zoom = map.getZoom();
       var bounds = map.getBounds().pad(0.2);
@@ -233,7 +276,7 @@ permalink: /world-map/
         var countryCode = cityCountryCode(feature);
         var isPriorityCountry = isChinaOrIndiaName(countryName) || isChinaOrIndiaCode(countryCode);
 
-        if (isPriorityCountry) {
+        if (uiState.showPriorityDetail && isPriorityCountry) {
           // Show more labels for China/India to provide richer local detail.
           if (zoom >= 6) {
             maxRank = Math.max(maxRank, 10);
@@ -316,19 +359,52 @@ permalink: /world-map/
       ensureProvinceLayer();
       ensurePriorityProvinceLayer();
 
-      if (zoom >= 4 && priorityProvinceLayer && !map.hasLayer(priorityProvinceLayer)) {
+      if (uiState.showCountryBorders && countryLayer && !map.hasLayer(countryLayer)) {
+        map.addLayer(countryLayer);
+      } else if (!uiState.showCountryBorders && countryLayer && map.hasLayer(countryLayer)) {
+        map.removeLayer(countryLayer);
+      }
+
+      if (uiState.showPriorityDetail && zoom >= 4 && priorityProvinceLayer && !map.hasLayer(priorityProvinceLayer)) {
         map.addLayer(priorityProvinceLayer);
-      } else if (zoom < 4 && priorityProvinceLayer && map.hasLayer(priorityProvinceLayer)) {
+      } else if ((!uiState.showPriorityDetail || zoom < 4) && priorityProvinceLayer && map.hasLayer(priorityProvinceLayer)) {
         map.removeLayer(priorityProvinceLayer);
       }
 
-      if (zoom >= 5 && provinceLayer && !map.hasLayer(provinceLayer)) {
+      if (uiState.showProvinceBorders && zoom >= 5 && provinceLayer && !map.hasLayer(provinceLayer)) {
         map.addLayer(provinceLayer);
-      } else if (zoom < 5 && provinceLayer && map.hasLayer(provinceLayer)) {
+      } else if ((!uiState.showProvinceBorders || zoom < 5) && provinceLayer && map.hasLayer(provinceLayer)) {
         map.removeLayer(provinceLayer);
       }
 
       rebuildCityLayer();
+    }
+
+    function bindControlEvents() {
+      if (toggleCountryBordersEl) {
+        toggleCountryBordersEl.addEventListener("change", function () {
+          uiState.showCountryBorders = !!toggleCountryBordersEl.checked;
+          syncZoomLayers();
+        });
+      }
+      if (toggleProvinceBordersEl) {
+        toggleProvinceBordersEl.addEventListener("change", function () {
+          uiState.showProvinceBorders = !!toggleProvinceBordersEl.checked;
+          syncZoomLayers();
+        });
+      }
+      if (togglePriorityDetailEl) {
+        togglePriorityDetailEl.addEventListener("change", function () {
+          uiState.showPriorityDetail = !!togglePriorityDetailEl.checked;
+          syncZoomLayers();
+        });
+      }
+      if (toggleCityLabelsEl) {
+        toggleCityLabelsEl.addEventListener("change", function () {
+          uiState.showCityLabels = !!toggleCityLabelsEl.checked;
+          syncZoomLayers();
+        });
+      }
     }
 
     Promise.all([
@@ -356,6 +432,7 @@ permalink: /world-map/
       }
 
       syncZoomLayers();
+      bindControlEvents();
       setStatus("Zoom 4+ shows extra province detail for China and India. Zoom 5+ adds global provinces.");
     }).catch(function () {
       setStatus("Map data could not be loaded. Please check your internet connection and refresh.");
