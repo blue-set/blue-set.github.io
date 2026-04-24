@@ -28,6 +28,7 @@ permalink: /world-map/
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
   crossorigin=""
 ></script>
+<script src="https://unpkg.com/leaflet-textpath@1.2.3/leaflet.textpath.js"></script>
 
 <style>
   #world-map-container {
@@ -74,42 +75,10 @@ permalink: /world-map/
     white-space: nowrap;
   }
 
-  .province-label {
-    display: block;
-    box-sizing: border-box;
-    line-height: 1.1;
-  }
-
-  .province-label__inner {
-    display: inline-block;
-    max-width: 10em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(80, 80, 80, 0.45);
-    border-radius: 3px;
-    color: #111;
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 0.35px;
-    line-height: 1.15;
-    padding: 3px 6px;
-    text-transform: uppercase;
-    text-shadow: 0 0 1px #fff, 0 0 2px #fff, 0 0 1px #fff;
-    white-space: nowrap;
-  }
-
   body.dark-mode .city-label {
     background: rgba(30, 30, 30, 0.85);
     border-color: #555;
     color: #f5f5f5;
-  }
-
-  body.dark-mode .province-label__inner {
-    background: rgba(25, 25, 25, 0.9);
-    border-color: rgba(220, 220, 220, 0.25);
-    color: #f2f2f2;
-    text-shadow: 0 0 1px #000, 0 0 2px #000, 0 0 1px #000;
   }
 
   @media (max-width: 768px) {
@@ -128,6 +97,7 @@ permalink: /world-map/
     var toggleProvinceBordersEl = document.getElementById("toggle-province-borders");
     var togglePriorityDetailEl = document.getElementById("toggle-priority-detail");
     var toggleCityLabelsEl = document.getElementById("toggle-city-labels");
+    var darkModeToggleEl = document.getElementById("dark-mode-toggle");
 
     if (!window.L || !mapEl) {
       if (statusEl) {
@@ -156,6 +126,8 @@ permalink: /world-map/
     var provinceLayer = null;
     var priorityProvinceLayer = null;
     var priorityProvinceLabelLayer = L.layerGroup();
+    var priorityProvinceNameFeatures = [];
+    var lastPriorityProvinceTextSig = null;
     var cityLayer = L.layerGroup().addTo(map);
     var provinceData = null;
     var extraProvinceData = [];
@@ -276,56 +248,205 @@ permalink: /world-map/
       ]);
     }
 
-    function provinceLabelTypography(zoom) {
-      var t = 13;
+    function provinceNameFontSizePx(zoom) {
       if (zoom >= 8) {
-        t = 18;
-      } else if (zoom >= 7) {
-        t = 16.5;
-      } else if (zoom >= 6) {
-        t = 15;
-      } else {
-        t = 13;
+        return 18;
       }
+      if (zoom >= 7) {
+        return 16.5;
+      }
+      if (zoom >= 6) {
+        return 15;
+      }
+      return 13;
+    }
+
+    function isDarkMode() {
+      return document.body && document.body.classList && document.body.classList.contains("dark-mode");
+    }
+
+    function provinceNameTextOptions(zoom) {
+      var fontSize = provinceNameFontSizePx(zoom);
+      var fill = isDarkMode() ? "#f5f5f5" : "#0b0b0b";
+      var stroke = isDarkMode() ? "#0b0b0b" : "#ffffff";
+      // SVG text: thick halo reads like a strategy game label.
       return {
-        fontSize: t,
-        paddingX: Math.round(4 + (t - 13) * 0.4),
-        paddingY: Math.round(3 + (t - 13) * 0.3)
+        center: true,
+        repeat: false,
+        below: false,
+        offset: 0,
+        fillColor: fill,
+        attributes: {
+          "font-size": String(fontSize),
+          "font-weight": "800",
+          "font-family": "HelveticaNeue, Helvetica, Arial, sans-serif",
+          "letter-spacing": "0.4px",
+          "stroke": stroke,
+          "stroke-width": "3.5px",
+          "paint-order": "stroke",
+          "text-transform": "uppercase"
+        }
       };
     }
 
-    function createProvinceLabelIcon(text, zoom) {
-      var typo = provinceLabelTypography(zoom);
-      var safeText = String(text);
-      // Escape a few common HTML-unsafe characters in administrative names.
-      safeText = safeText
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      var html = "<span class=\"province-label__inner\" style=\"font-size:" + typo.fontSize + "px;" +
-        " padding:" + typo.paddingY + "px " + typo.paddingX + "px;\">" + safeText + "</span>";
-      // Leaflet's divIcon needs a generous box so the larger text doesn't get clipped.
-      return L.divIcon({
-        className: "province-label",
-        html: html,
-        iconSize: [300, 80],
-        iconAnchor: [150, 40]
-      });
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
     }
 
-    function updateProvinceLabelIcons() {
-      if (!priorityProvinceLabelLayer) {
+    function pointAlongSegment(ax, ay, bx, by, t) {
+      return [lerp(ax, bx, t), lerp(ay, by, t)];
+    }
+
+    function quadraticBezier(ax, ay, cx, cy, bx, by, t) {
+      var u = 1 - t;
+      var x = (u * u * ax) + (2 * u * t * cx) + (t * t * bx);
+      var y = (u * u * ay) + (2 * u * t * cy) + (t * t * by);
+      return [x, y];
+    }
+
+    function segmentInteriorScore(polygon, ax, ay, bx, by, samples) {
+      var s = samples || 17;
+      var ok = 0;
+      for (var i = 0; i < s; i++) {
+        var t = i / (s - 1);
+        var p = pointAlongSegment(ax, ay, bx, by, t);
+        if (pointInPolygonRings(p[0], p[1], polygon)) {
+          ok++;
+        }
+      }
+      return ok / s;
+    }
+
+    function findBestInteriorAxis(polygon, pole) {
+      if (!polygon || !polygon[0] || !pole) {
+        return null;
+      }
+      var b = L.latLngBounds(polygon[0].map(function (c) { return [c[1], c[0]]; }));
+      if (!b.isValid()) {
+        return null;
+      }
+      var sw = b.getSouthWest();
+      var ne = b.getNorthEast();
+      var width = ne.lng - sw.lng;
+      var height = ne.lat - sw.lat;
+      var maxLen = 0.55 * Math.sqrt(width * width + height * height);
+      if (maxLen <= 0) {
+        return null;
+      }
+
+      var plng = pole[0];
+      var plat = pole[1];
+      var best = null;
+      for (var step = 0; step < 16; step++) {
+        var ang = (Math.PI * step) / 16;
+        var dx = Math.cos(ang);
+        var dy = Math.sin(ang);
+        var lo = 0;
+        var hi = maxLen;
+        for (var it = 0; it < 10; it++) {
+          var mid = (lo + hi) / 2;
+          var alng = plng - dx * mid;
+          var alat = plat - dy * mid;
+          var blng = plng + dx * mid;
+          var blat = plat + dy * mid;
+          if (segmentInteriorScore(polygon, alng, alat, blng, blat, 17) >= 0.9) {
+            lo = mid;
+          } else {
+            hi = mid;
+          }
+        }
+        var dlen = lo;
+        if (dlen > 1e-6 && (!best || dlen > best.dlen)) {
+          best = {
+            dlen: dlen,
+            ax: plng - dx * dlen,
+            ay: plat - dy * dlen,
+            bx: plng + dx * dlen,
+            by: plat + dy * dlen
+          };
+        }
+      }
+      return best;
+    }
+
+    function buildCurvedTextLatLngs(geometry) {
+      var poly = pickLargestPolygon(geometry);
+      if (!poly) {
+        return null;
+      }
+      var pole = labelPointForPolygon(poly);
+      if (!pole) {
+        return null;
+      }
+      var axis = findBestInteriorAxis(poly, pole);
+      if (!axis) {
+        return null;
+      }
+
+      // Multi-point path so TextPath can curve along bends (quadratic Bezier in geo space).
+      var pts = [];
+      var steps = 9;
+      for (var i = 0; i < steps; i++) {
+        var t = i / (steps - 1);
+        var p = quadraticBezier(axis.ax, axis.ay, pole[0], pole[1], axis.bx, axis.by, t);
+        if (pointInPolygonRings(p[0], p[1], poly)) {
+          pts.push([p[1], p[0]]);
+        } else {
+          // If a bezier point lands slightly outside due to numeric issues, project back to pole->axis.
+          var blend = L.latLng(lerp(axis.ay, axis.by, t), lerp(axis.ax, axis.bx, t));
+          pts.push(blend);
+        }
+      }
+      if (pts.length < 2) {
+        return null;
+      }
+      return pts;
+    }
+
+    function rebuildPriorityProvinceNamePaths() {
+      if (!L.Polyline || typeof L.Polyline.prototype.setText !== "function") {
+        if (statusEl) {
+          statusEl.textContent = "Curved labels require SVG rendering + Leaflet.TextPath plugin.";
+        }
         return;
       }
+
+      if (!uiState.showPriorityDetail || map.getZoom() < 5) {
+        lastPriorityProvinceTextSig = null;
+        priorityProvinceLabelLayer.clearLayers();
+        return;
+      }
+
       var zoom = map.getZoom();
-      var layers = priorityProvinceLabelLayer.getLayers();
-      for (var i = 0; i < layers.length; i++) {
-        var m = layers[i];
-        if (!m || !m.setIcon || !m._provinceLabelText) {
+      var sig = "z:" + zoom + "|dark:" + (isDarkMode() ? "1" : "0") + "|n:" + priorityProvinceNameFeatures.length;
+      if (lastPriorityProvinceTextSig === sig && priorityProvinceLabelLayer.getLayers().length) {
+        return;
+      }
+      lastPriorityProvinceTextSig = sig;
+
+      priorityProvinceLabelLayer.clearLayers();
+      var textOpts = provinceNameTextOptions(zoom);
+      for (var i = 0; i < priorityProvinceNameFeatures.length; i++) {
+        var feature = priorityProvinceNameFeatures[i];
+        var label = provinceName(feature);
+        if (!label) {
           continue;
         }
-        m.setIcon(createProvinceLabelIcon(m._provinceLabelText, zoom));
+        var ll = buildCurvedTextLatLngs(feature.geometry);
+        if (!ll) {
+          continue;
+        }
+        var line = L.polyline(ll, {
+          interactive: false,
+          bubblingMouseEvents: false,
+          weight: 1,
+          opacity: 0,
+          color: "#000"
+        });
+        var shown = String(label).toUpperCase();
+        // Leaflet.TextPath will replace normal spaces; keep a single string.
+        line.setText(shown, textOpts);
+        priorityProvinceLabelLayer.addLayer(line);
       }
     }
 
@@ -476,23 +597,6 @@ permalink: /world-map/
         }
       }
       return best;
-    }
-
-    function labelPointForGeometry(geometry) {
-      if (!geometry || !geometry.type) {
-        return null;
-      }
-      if (geometry.type === "Point") {
-        return geometry.coordinates;
-      }
-      if (geometry.type === "Polygon" || geometry.type === "MultiPolygon") {
-        var poly = pickLargestPolygon(geometry);
-        if (!poly) {
-          return null;
-        }
-        return labelPointForPolygon(poly);
-      }
-      return null;
     }
 
     function featureDedupKey(feature) {
@@ -665,25 +769,9 @@ permalink: /world-map/
         style: stylePriorityProvinceBorders
       });
 
+      priorityProvinceNameFeatures = priorityFeatures;
+      lastPriorityProvinceTextSig = null;
       priorityProvinceLabelLayer.clearLayers();
-      for (var m = 0; m < priorityFeatures.length; m++) {
-        var feature = priorityFeatures[m];
-        var label = provinceName(feature);
-        if (!label) {
-          continue;
-        }
-        var pt = labelPointForGeometry(feature.geometry);
-        if (!pt) {
-          continue;
-        }
-        var marker = L.marker([pt[1], pt[0]], {
-          icon: createProvinceLabelIcon(label, map.getZoom()),
-          keyboard: false
-        });
-        marker._provinceLabelText = label;
-        marker.setZIndexOffset(500);
-        priorityProvinceLabelLayer.addLayer(marker);
-      }
     }
 
     function syncZoomLayers() {
@@ -705,11 +793,8 @@ permalink: /world-map/
 
       if (uiState.showPriorityDetail && zoom >= 5 && !map.hasLayer(priorityProvinceLabelLayer)) {
         map.addLayer(priorityProvinceLabelLayer);
-        updateProvinceLabelIcons();
       } else if ((!uiState.showPriorityDetail || zoom < 5) && map.hasLayer(priorityProvinceLabelLayer)) {
         map.removeLayer(priorityProvinceLabelLayer);
-      } else {
-        updateProvinceLabelIcons();
       }
 
       if (uiState.showProvinceBorders && zoom >= 5 && provinceLayer && !map.hasLayer(provinceLayer)) {
@@ -718,10 +803,17 @@ permalink: /world-map/
         map.removeLayer(provinceLayer);
       }
 
+      rebuildPriorityProvinceNamePaths();
       rebuildCityLayer();
     }
 
     function bindControlEvents() {
+      if (darkModeToggleEl) {
+        darkModeToggleEl.addEventListener("click", function () {
+          // Let the default layout switch classes first, then re-style SVG labels.
+          setTimeout(rebuildPriorityProvinceNamePaths, 0);
+        });
+      }
       if (toggleCountryBordersEl) {
         toggleCountryBordersEl.addEventListener("change", function () {
           uiState.showCountryBorders = !!toggleCountryBordersEl.checked;
