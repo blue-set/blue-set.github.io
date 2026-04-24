@@ -75,16 +75,27 @@ permalink: /world-map/
   }
 
   .province-label {
+    display: block;
+    box-sizing: border-box;
+    line-height: 1.1;
+  }
+
+  .province-label__inner {
+    display: inline-block;
+    max-width: 10em;
+    overflow: hidden;
+    text-overflow: ellipsis;
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid rgba(80, 80, 80, 0.45);
     border-radius: 3px;
     color: #111;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    line-height: 1.1;
-    padding: 1px 3px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.35px;
+    line-height: 1.15;
+    padding: 3px 6px;
     text-transform: uppercase;
+    text-shadow: 0 0 1px #fff, 0 0 2px #fff, 0 0 1px #fff;
     white-space: nowrap;
   }
 
@@ -94,10 +105,11 @@ permalink: /world-map/
     color: #f5f5f5;
   }
 
-  body.dark-mode .province-label {
+  body.dark-mode .province-label__inner {
     background: rgba(25, 25, 25, 0.9);
     border-color: rgba(220, 220, 220, 0.25);
     color: #f2f2f2;
+    text-shadow: 0 0 1px #000, 0 0 2px #000, 0 0 1px #000;
   }
 
   @media (max-width: 768px) {
@@ -262,6 +274,52 @@ permalink: /world-map/
         "woe_name",
         "gn_name"
       ]);
+    }
+
+    function provinceLabelTypography(zoom) {
+      var t = 13;
+      if (zoom >= 8) {
+        t = 18;
+      } else if (zoom >= 7) {
+        t = 16.5;
+      } else if (zoom >= 6) {
+        t = 15;
+      } else {
+        t = 13;
+      }
+      return {
+        fontSize: t,
+        paddingX: Math.round(4 + (t - 13) * 0.4),
+        paddingY: Math.round(3 + (t - 13) * 0.3)
+      };
+    }
+
+    function createProvinceLabelIcon(text, zoom) {
+      var typo = provinceLabelTypography(zoom);
+      var html = "<span class=\"province-label__inner\" style=\"font-size:" + typo.fontSize + "px;" +
+        " padding:" + typo.paddingY + "px " + typo.paddingX + "px;\">" + String(text) + "</span>";
+      // Leaflet's divIcon needs a generous box so the larger text doesn't get clipped.
+      return L.divIcon({
+        className: "province-label",
+        html: html,
+        iconSize: [300, 80],
+        iconAnchor: [150, 40]
+      });
+    }
+
+    function updateProvinceLabelIcons() {
+      if (!priorityProvinceLabelLayer) {
+        return;
+      }
+      var zoom = map.getZoom();
+      var layers = priorityProvinceLabelLayer.getLayers();
+      for (var i = 0; i < layers.length; i++) {
+        var m = layers[i];
+        if (!m || !m.setIcon || !m._provinceLabelText) {
+          continue;
+        }
+        m.setIcon(createProvinceLabelIcon(m._provinceLabelText, zoom));
+      }
     }
 
     function ringCentroid(ring) {
@@ -449,12 +507,10 @@ permalink: /world-map/
           continue;
         }
         var marker = L.marker([centroid[1], centroid[0]], {
-          icon: L.divIcon({
-            className: "province-label",
-            html: label
-          }),
+          icon: createProvinceLabelIcon(label, map.getZoom()),
           keyboard: false
         });
+        marker._provinceLabelText = label;
         priorityProvinceLabelLayer.addLayer(marker);
       }
     }
@@ -478,8 +534,11 @@ permalink: /world-map/
 
       if (uiState.showPriorityDetail && zoom >= 5 && !map.hasLayer(priorityProvinceLabelLayer)) {
         map.addLayer(priorityProvinceLabelLayer);
+        updateProvinceLabelIcons();
       } else if ((!uiState.showPriorityDetail || zoom < 5) && map.hasLayer(priorityProvinceLabelLayer)) {
         map.removeLayer(priorityProvinceLabelLayer);
+      } else {
+        updateProvinceLabelIcons();
       }
 
       if (uiState.showProvinceBorders && zoom >= 5 && provinceLayer && !map.hasLayer(provinceLayer)) {
