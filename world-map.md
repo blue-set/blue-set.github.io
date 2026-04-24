@@ -296,8 +296,15 @@ permalink: /world-map/
 
     function createProvinceLabelIcon(text, zoom) {
       var typo = provinceLabelTypography(zoom);
+      var safeText = String(text);
+      // Escape a few common HTML-unsafe characters in administrative names.
+      safeText = safeText
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
       var html = "<span class=\"province-label__inner\" style=\"font-size:" + typo.fontSize + "px;" +
-        " padding:" + typo.paddingY + "px " + typo.paddingX + "px;\">" + String(text) + "</span>";
+        " padding:" + typo.paddingY + "px " + typo.paddingX + "px;\">" + safeText + "</span>";
       // Leaflet's divIcon needs a generous box so the larger text doesn't get clipped.
       return L.divIcon({
         className: "province-label",
@@ -323,6 +330,9 @@ permalink: /world-map/
     }
 
     function ringCentroid(ring) {
+      if (!ring || ring.length < 3) {
+        return null;
+      }
       var areaAcc = 0;
       var cxAcc = 0;
       var cyAcc = 0;
@@ -343,29 +353,171 @@ permalink: /world-map/
       return [cxAcc / (6 * area), cyAcc / (6 * area)];
     }
 
-    function geometryCentroid(geometry) {
-      if (!geometry || !geometry.type || !geometry.coordinates) {
-        return null;
+    function closedRing(ring) {
+      if (!ring || !ring.length) {
+        return ring;
       }
-      if (geometry.type === "Polygon") {
-        return ringCentroid(geometry.coordinates[0]);
+      var first = ring[0];
+      var last = ring[ring.length - 1];
+      if (first[0] === last[0] && first[1] === last[1]) {
+        return ring;
       }
-      if (geometry.type === "MultiPolygon") {
-        var biggestRing = null;
-        var biggestLen = 0;
+      return ring.concat([first]);
+    }
+
+    // Ray casting test for a simple ring. Works for most GeoJSON-style rings.
+    function pointInRing(lng, lat, ring) {
+      var r = closedRing(ring);
+      var inside = false;
+      for (var i = 0, j = r.length - 1; i < r.length; j = i++) {
+        var xi = r[i][0];
+        var yi = r[i][1];
+        var xj = r[j][0];
+        var yj = r[j][1];
+        var intersect = ((yi > lat) !== (yj > lat)) &&
+          (lng < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+        if (intersect) {
+          inside = !inside;
+        }
+      }
+      return inside;
+    }
+
+    function ringAbsArea(ring) {
+      if (!ring || ring.length < 3) {
+        return 0;
+      }
+      var areaAcc = 0;
+      for (var i = 0; i < ring.length - 1; i++) {
+        var x1 = ring[i][0];
+        var y1 = ring[i][1];
+        var x2 = ring[i + 1][0];
+        var y2 = ring[i + 1][1];
+        areaAcc += (x1 * y2) - (x2 * y1);
+      }
+      return Math.abs(areaAcc / 2);
+    }
+
+    function pickLargestPolygon(geometry) {
+      if (geometry && geometry.type === "Polygon" && geometry.coordinates && geometry.coordinates[0]) {
+        return geometry.coordinates;
+      }
+      if (geometry && geometry.type === "MultiPolygon" && geometry.coordinates) {
+        var best = null;
+        var bestArea = 0;
         for (var i = 0; i < geometry.coordinates.length; i++) {
           var poly = geometry.coordinates[i];
           if (!poly || !poly[0]) {
             continue;
           }
-          if (poly[0].length > biggestLen) {
-            biggestLen = poly[0].length;
-            biggestRing = poly[0];
+          var outer = poly[0];
+          var a = ringAbsArea(outer);
+          if (a > bestArea) {
+            bestArea = a;
+            best = poly;
           }
         }
-        if (biggestRing) {
-          return ringCentroid(biggestRing);
+        return best;
+      }
+      return null;
+    }
+
+    function pointInPolygonRings(lng, lat, polygon) {
+      if (!polygon || !polygon[0]) {
+        return false;
+      }
+      var outer = polygon[0];
+      if (!pointInRing(lng, lat, outer)) {
+        return false;
+      }
+      for (var h = 1; h < polygon.length; h++) {
+        if (pointInRing(lng, lat, polygon[h])) {
+          return false;
         }
+      }
+      return true;
+    }
+
+    // Find a point that is *inside* the primary polygon, not just its centroid
+    // (centroids are often outside C-shaped and island-heavy administrative shapes).
+    function labelPointForPolygon(polygon) {
+      if (!polygon || !polygon[0]) {
+        return null;
+      }
+      var outer = polygon[0];
+      var c = ringCentroid(outer);
+      if (c && pointInPolygonRings(c[0], c[1], polygon)) {
+        return c;
+      }
+
+      var b = L.latLngBounds(outer);
+      if (!b.isValid()) {
+        return null;
+      }
+      var sw = b.getSouthWest();
+      var ne = b.getNorthEast();
+      var best = null;
+      var bestScore = -Infinity;
+      var steps = 12;
+      for (var xi = 0; xi <= steps; xi++) {
+        for (var yi = 0; yi <= steps; yi++) {
+          var lng = sw.lng + (ne.lng - sw.lng) * (xi / steps);
+          var lat = sw.lat + (ne.lat - sw.lat) * (yi / steps);
+          if (pointInPolygonRings(lng, lat, polygon)) {
+            // Maximize distance to bbox edges; cheap proxy for a more interior point.
+            var dLng = Math.min(lng - sw.lng, ne.lng - lng);
+            var dLat = Math.min(lat - sw.lat, ne.lat - lat);
+            var score = Math.min(dLng, dLat);
+            if (score > bestScore) {
+              bestScore = score;
+              best = [lng, lat];
+            }
+          }
+        }
+      }
+      return best;
+    }
+
+    function labelPointForGeometry(geometry) {
+      if (!geometry || !geometry.type) {
+        return null;
+      }
+      if (geometry.type === "Point") {
+        return geometry.coordinates;
+      }
+      if (geometry.type === "Polygon" || geometry.type === "MultiPolygon") {
+        var poly = pickLargestPolygon(geometry);
+        if (!poly) {
+          return null;
+        }
+        return labelPointForPolygon(poly);
+      }
+      return null;
+    }
+
+    function featureDedupKey(feature) {
+      var props = feature && feature.properties ? feature.properties : {};
+      var code = propText(props, ["adm1_code", "ADM1_CODE", "gadm1_code", "code_hasc", "iso_3166_2", "postal", "id"]);
+      var name = propText(props, [
+        "name_en",
+        "NAME_EN",
+        "name",
+        "NAME",
+        "nameascii",
+        "NAMEASCII"
+      ]).toLowerCase();
+      var a3 = String(propText(props, ["adm0_a3", "ADM0_A3", "gu_a3", "GU_A3"]) || "").toUpperCase();
+      if (a3 && name) {
+        return a3 + "|" + name;
+      }
+      if (a3 && code) {
+        return a3 + "|" + code;
+      }
+      if (name) {
+        return "name|" + name;
+      }
+      if (code) {
+        return "code|" + code;
       }
       return null;
     }
@@ -467,13 +619,21 @@ permalink: /world-map/
         return;
       }
 
+      var seenKeys = Object.create(null);
       var priorityFeatures = [];
-      if (provinceData.features) {
-        for (var i = 0; i < provinceData.features.length; i++) {
-          if (isChinaOrIndiaFeature(provinceData.features[i])) {
-            priorityFeatures.push(provinceData.features[i]);
-          }
+
+      function addFeatureIfNew(feature) {
+        if (!feature) {
+          return;
         }
+        var key = featureDedupKey(feature);
+        if (key) {
+          if (seenKeys[key]) {
+            return;
+          }
+          seenKeys[key] = true;
+        }
+        priorityFeatures.push(feature);
       }
 
       for (var j = 0; j < extraProvinceData.length; j++) {
@@ -482,8 +642,18 @@ permalink: /world-map/
           continue;
         }
         for (var k = 0; k < extraSet.features.length; k++) {
-          if (isChinaOrIndiaFeature(extraSet.features[k])) {
-            priorityFeatures.push(extraSet.features[k]);
+          var f = extraSet.features[k];
+          if (isChinaOrIndiaFeature(f)) {
+            addFeatureIfNew(f);
+          }
+        }
+      }
+
+      if (provinceData.features) {
+        for (var i = 0; i < provinceData.features.length; i++) {
+          var nf = provinceData.features[i];
+          if (isChinaOrIndiaFeature(nf)) {
+            addFeatureIfNew(nf);
           }
         }
       }
@@ -502,15 +672,16 @@ permalink: /world-map/
         if (!label) {
           continue;
         }
-        var centroid = geometryCentroid(feature.geometry);
-        if (!centroid) {
+        var pt = labelPointForGeometry(feature.geometry);
+        if (!pt) {
           continue;
         }
-        var marker = L.marker([centroid[1], centroid[0]], {
+        var marker = L.marker([pt[1], pt[0]], {
           icon: createProvinceLabelIcon(label, map.getZoom()),
           keyboard: false
         });
         marker._provinceLabelText = label;
+        marker.setZIndexOffset(500);
         priorityProvinceLabelLayer.addLayer(marker);
       }
     }
